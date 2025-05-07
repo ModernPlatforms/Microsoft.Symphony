@@ -61,8 +61,15 @@ for deployment in "${modules[@]}"; do
     pre_validate
   fi
 
-  az bicep upgrade
-  az config set bicep.check_version=False
+  # --- fix for ephemeral AZURE_CONFIG_DIR ---
+  if [[ -n "$AZURE_CONFIG_DIR" ]]; then
+    mkdir -p "$AZURE_CONFIG_DIR/bin"
+    export PATH="$AZURE_CONFIG_DIR/bin:$PATH"
+  fi
+
+  # Install/upgrade Bicep
+  az bicep version >/dev/null 2>&1 || az bicep install --target-platform linux-x64
+  az config set bicep.check_version=false
 
   load_dotenv
 
