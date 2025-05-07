@@ -1,0 +1,31 @@
+---
+parameters:
+  - name: environmentName
+    type: string
+  - name: locationName
+    type: string
+
+jobs:
+  - job: Destroy
+    displayName: "Destroy"
+    workspace:
+      clean: resources
+
+    steps:
+      - checkout: self
+
+      - task: AzureCLI@2
+        displayName: 'Destroy environment'
+        inputs:
+          azureSubscription: symphony
+          scriptType: 'bash'
+          scriptLocation: 'inlineScript'
+          addSpnToEnvironment: true
+          workingDirectory: "$(System.DefaultWorkingDirectory)/scripts/orchestrators"
+          inlineScript: |
+            export WORKSPACE_PATH="$(System.DefaultWorkingDirectory)"
+            export RUN_ID="$(Build.BuildId)"
+            export ENVIRONMENT_NAME="${{ parameters.environmentName }}"
+            export LOCATION_NAME="${{ parameters.locationName }}"
+
+            ./iac.bicep.destroy.sh

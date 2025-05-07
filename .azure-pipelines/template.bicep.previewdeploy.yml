@@ -1,0 +1,38 @@
+---
+parameters:
+  - name: environmentName
+    type: string
+  - name: locationName
+    type: string
+  - name: excludedFolders
+    type: string
+
+jobs:
+  - job: PreviewDeploy
+    displayName: "Preview and Deploy"
+    dependsOn:
+      - Validate
+
+    steps:
+      - checkout: self
+
+      - task: AzureCLI@2
+        displayName: 'Run bicep preview and deploy'
+        inputs:
+          azureSubscription: symphony
+          scriptType: 'bash'
+          scriptLocation: 'inlineScript'
+          addSpnToEnvironment: true
+          workingDirectory: "$(System.DefaultWorkingDirectory)/scripts/orchestrators"
+          inlineScript: |
+            export WORKSPACE_PATH="$(System.DefaultWorkingDirectory)"
+            export RUN_ID="$(Build.BuildId)"
+            export ENVIRONMENT_NAME="${{ parameters.environmentName }}"
+            export LOCATION_NAME="${{ parameters.locationName }}"
+
+            ./iac.bicep.previewdeploy.sh
+
+      - task: Cache@2
+        inputs:
+          path: "$(System.DefaultWorkingDirectory)/IAC/Bicep/bicep"
+          key: '"$(Build.BuildId)"'

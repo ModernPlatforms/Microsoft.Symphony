@@ -1,0 +1,68 @@
+---
+parameters:
+  - name: environmentName
+    type: string
+  - name: locationName
+    type: string
+  - name: excludedFolders
+    type: string
+
+jobs:
+  - job: Validate
+    displayName: "Validate"
+
+    steps:
+      - checkout: self
+
+      - task: Bash@3
+        displayName: "Install required tools"
+        inputs:
+          workingDirectory: "$(System.DefaultWorkingDirectory)/scripts/orchestrators"
+          bashEnvValue: "~/.profile"
+          failOnStderr: false
+          targetType: "inline"
+          script: |
+            set -e
+            ./setup-azcli.sh
+            ./setup-gitleaks.sh
+            ./setup-powershell.sh
+            ./setup-armttk.sh
+
+      - task: Bash@3
+        displayName: "Run Gitleaks"
+        inputs:
+          workingDirectory: "$(System.DefaultWorkingDirectory)/scripts/orchestrators"
+          targetType: "inline"
+          script: |
+            source ./scanners.sh
+            run_gitleaks './../../' 'sarif' 'info' 'true' 'true'
+
+      - task: PublishBuildArtifacts@1
+        inputs:
+          pathToPublish: "$(System.DefaultWorkingDirectory)/scripts/orchestrators/gitleaks-report.sarif"
+          artifactName: 'CodeAnalysisLogs'
+
+      - task: Bash@3
+        displayName: "Run linter"
+        env:
+          WORKSPACE_PATH: $(System.DefaultWorkingDirectory)
+        inputs:
+          workingDirectory: "$(System.DefaultWorkingDirectory)/scripts/orchestrators"
+          targetType: "filePath"
+          filePath: "$(System.DefaultWorkingDirectory)/scripts/orchestrators/iac.bicep.lint.sh"
+
+      - task: AzureCLI@2
+        displayName: 'Run bicep validate'
+        inputs:
+          azureSubscription: symphony
+          scriptType: 'bash'
+          scriptLocation: 'inlineScript'
+          addSpnToEnvironment: true
+          workingDirectory: "$(System.DefaultWorkingDirectory)/scripts/orchestrators"
+          inlineScript: |
+            export WORKSPACE_PATH="$(System.DefaultWorkingDirectory)"
+            export RUN_ID="$(Build.BuildId)"
+            export ENVIRONMENT_NAME="${{ parameters.environmentName }}"
+            export LOCATION_NAME="${{ parameters.locationName }}"
+
+            ./iac.bicep.validate.sh

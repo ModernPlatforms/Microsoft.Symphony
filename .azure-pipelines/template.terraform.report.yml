@@ -1,0 +1,31 @@
+---
+
+jobs:
+  - job: Report
+    displayName: "Report"
+    workspace:
+      clean: resources
+    dependsOn: PreviewDeploy
+    condition: eq(variables['runBackupState'], 'true')
+
+    steps:
+      - checkout: self
+
+      - task: AzureCLI@2
+        displayName: 'backup $(environmentName) state files'
+        inputs:
+          azureSubscription: symphony
+          scriptType: 'bash'
+          scriptLocation: 'inlineScript'
+          addSpnToEnvironment: true
+          workingDirectory: "$(System.DefaultWorkingDirectory)/scripts/orchestrators"
+          inlineScript: |
+            export STATE_RG="$(stateRg)"
+            export STATE_STORAGE_ACCOUNT="$(stateStorageAccount)"
+            export STATE_CONTAINER="$(stateContainer)"
+            export ENVIRONMENT_NAME="$(environmentName)"
+            export STATE_STORAGE_ACCOUNT_BACKUP="$(stateStorageAccountBackup)"
+            export COMMIT_ID="$(Build.SourceVersion)"
+            export RUN_ID="$(Build.BuildId)"
+
+            ./iac.tf.statebackup.sh

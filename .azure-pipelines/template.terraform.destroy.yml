@@ -1,0 +1,30 @@
+---
+parameters:
+  - name: environmentName
+    type: string
+
+jobs:
+  - job: Destroy
+    displayName: "Destroy"
+    workspace:
+      clean: resources
+
+    steps:
+      - checkout: self
+
+      - task: AzureCLI@2
+        displayName: 'Destroy environment'
+        inputs:
+          azureSubscription: symphony
+          scriptType: 'bash'
+          scriptLocation: 'inlineScript'
+          addSpnToEnvironment: true
+          workingDirectory: "$(System.DefaultWorkingDirectory)/scripts/orchestrators"
+          inlineScript: |
+            export WORKSPACE_PATH="$(System.DefaultWorkingDirectory)"
+            export STATE_RG="$(stateRg)"
+            export STATE_STORAGE_ACCOUNT="$(stateStorageAccount)"
+            export STATE_CONTAINER="$(stateContainer)"
+            export ENVIRONMENT_NAME="$(environmentName)"
+
+            ./iac.tf.destroy.sh

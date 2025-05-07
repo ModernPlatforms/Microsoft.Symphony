@@ -1,0 +1,26 @@
+---
+name: $(BuildDefinitionName).$(DayOfYear)$(Rev:.r)
+
+trigger:
+  - none
+
+pr:
+  - none
+
+variables:
+  - group: symphony
+
+  - name: agentImage
+    value: "ubuntu-latest"
+
+  # Commented out to use the values from the Azdo pipeline variables
+  # - name: environmentName
+  #   value: "dev"
+
+pool:
+  vmImage: $(agentImage)
+
+jobs:
+  - template: ./template.terraform.destroy.yml
+    parameters:
+      environmentName: $(environmentName)

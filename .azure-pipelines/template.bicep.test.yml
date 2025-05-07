@@ -1,0 +1,79 @@
+---
+parameters:
+  - name: environmentName
+    type: string
+  - name: locationName
+    type: string
+  - name: excludedFolders
+    type: string
+
+jobs:
+  - job: Test
+    variables:
+      - name: bicepJson
+        value: $[ dependencies.PreviewDeploy.outputs['BicepPreviewDeploy.bicepJson'] ]
+    displayName: "E2E Test"
+    dependsOn:
+      - PreviewDeploy
+    workspace:
+      clean: resources
+
+    steps:
+      - checkout: self
+
+      - task: Bash@3
+        displayName: "Install required tools"
+        inputs:
+          workingDirectory: "$(System.DefaultWorkingDirectory)/scripts/orchestrators"
+          bashEnvValue: "~/.profile"
+          failOnStderr: false
+          targetType: "inline"
+          script: |
+            set -e
+            ./setup-azcli.sh
+            ./setup-powershell.sh
+            ./setup-pester.sh
+            ./setup-benchpress.sh
+            ./setup-azpowershell.sh
+
+      - task: Cache@2
+        inputs:
+          path: "$(System.DefaultWorkingDirectory)/IAC/Bicep/bicep"
+          key: '"$(Build.BuildId)"'
+
+      - task: AzurePowerShell@5
+        displayName: 'Run E2E tests'
+        inputs:
+          azureSubscription: symphony
+          ScriptType: 'InlineScript'
+          pwsh: true
+          azurePowerShellVersion: 'LatestVersion'
+          workingDirectory: "$(System.DefaultWorkingDirectory)/scripts/orchestrators"
+          Inline: |
+            $bashScript = @"
+              export WORKSPACE_PATH="$(System.DefaultWorkingDirectory)"
+              export RUN_ID="$(Build.BuildId)"
+              export ENVIRONMENT_NAME="${{ parameters.environmentName }}"
+              export LOCATION_NAME="${{ parameters.locationName }}"
+
+              source ./tests.runner.sh
+
+              pushd $(System.DefaultWorkingDirectory)/IAC/Bicep/bicep
+                load_dotenv
+              popd
+
+              bicep pester
+            "@
+
+            bash -c "$bashScript"
+
+      - task: PublishTestResults@2
+        displayName: "Publish E2E test results"
+        inputs:
+          testResultsFormat: "NUnit"
+          testResultsFiles: "*.xml"
+          searchFolder: "$(System.DefaultWorkingDirectory)/IAC/Bicep/test/end_to_end"
+          failTaskOnFailedTests: true
+          testRunTitle: "E2E Test"
+          publishRunAttachments: true
+          mergeTestResults: true

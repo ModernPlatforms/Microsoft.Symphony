@@ -1,0 +1,47 @@
+---
+name: $(BuildDefinitionName).$(DayOfYear)$(Rev:.r)
+
+trigger:
+  - none
+
+pr:
+  - none
+
+variables:
+  #=============================================================#
+  # The following Variables should be set on the pipeline level #
+  #=============================================================#
+
+  - name: agentImage
+    value: "ubuntu-latest"
+  # Commented out to use the values from the Azdo pipeline variables
+  # - name: environmentName
+  #   value: "dev"
+
+  # - name: locationName
+  #   value: "westus"
+
+  - name: excludedFolders
+    value: ","
+
+pool:
+  vmImage: $(agentImage)
+
+jobs:
+  - template: ./template.bicep.validate.yml
+    parameters:
+      environmentName: $(environmentName)
+      locationName: $(locationName)
+      excludedFolders: $(excludedFolders)
+
+  - template: ./template.bicep.previewdeploy.yml
+    parameters:
+      environmentName: $(environmentName)
+      locationName: $(locationName)
+      excludedFolders: $(excludedFolders)
+
+  - template: ./template.bicep.test.yml
+    parameters:
+      environmentName: $(environmentName)
+      locationName: $(locationName)
+      excludedFolders: $(excludedFolders)
